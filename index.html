@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tracer: transaction review</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l9 3v7c0 5-4 8-9 10-5-2-9-5-9-10V5z' fill='%237aa7ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* ===== Design tokens ===== */
+:root{--bg:#0a0c11;--in:#0d1017;--sf:#11141b;--sf2:#181c26;--bd:#232937;--tx:#eceff6;--mu:#8d96aa;--ac:#7aa7ff;--acx:#08101f;--ok:#3fd09a;--wa:#f6b24c;--bad:#ff6b72;--sh:none;--hd:"Bricolage Grotesque",Inter,system-ui,sans-serif}
+[data-theme=light]{--bg:#f5f6f9;--in:#f1f3f8;--sf:#fff;--sf2:#eef0f6;--bd:#dde1ec;--tx:#10131c;--mu:#545e77;--ac:#2d59d6;--acx:#fff;--ok:#0f7a45;--wa:#955700;--bad:#c4283a;--sh:0 1px 2px rgba(16,19,28,.06)}
+*{box-sizing:border-box}
+body{margin:0;color:var(--tx);font:15px/1.55 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;background:radial-gradient(900px 420px at 12% -8%,color-mix(in srgb,var(--ac) 13%,transparent),transparent),var(--bg);background-attachment:scroll}
+.m{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{margin:0 0 8px;font-family:var(--hd);letter-spacing:-.02em}h2{font-size:24px;font-weight:700}h3{font-size:16px;font-weight:600}
+p{margin:0 0 10px}.help{font-size:12.5px;color:var(--mu)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
+.bar{max-width:1280px;margin:auto;padding:0 20px;min-height:58px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;font:800 23px var(--hd);letter-spacing:-.04em}.brand svg{color:var(--ac)}
+nav{display:flex;gap:4px;margin-left:28px}
+nav a{display:flex;align-items:center;height:58px;padding:0 14px;color:var(--mu);text-decoration:none;font-weight:500;border-bottom:2px solid transparent;transition:color .15s}
+nav a:hover{color:var(--tx)}nav a[aria-selected=true]{color:var(--tx);border-bottom-color:var(--ac)}
+.right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:5px 11px;border:1px solid var(--bd);border-radius:99px;color:var(--mu);background:var(--sf)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--mu);box-shadow:0 0 0 3px color-mix(in srgb,currentColor 12%,transparent)}
+.btn{background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:9px 16px;cursor:pointer;font-weight:500;transition:transform .15s,border-color .15s,background .15s}
+.btn:hover{transform:translateY(-1px);border-color:var(--ac)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--acx);font-weight:600}
+.btn:disabled{opacity:.65;cursor:wait;transform:none}.btn.sm{padding:6px 12px;font-size:13px}
+main{max-width:1280px;margin:auto;padding:12px 20px 24px}
+[hidden]{display:none!important}
+.hero{padding:34px 0 18px}.hero h1{font-size:clamp(32px,5.2vw,54px);font-weight:800;line-height:1.02;letter-spacing:-.045em;max-width:15ch;margin-bottom:14px}
+.hero p{max-width:60ch;color:var(--mu);font-size:16px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:22px;box-shadow:var(--sh);margin:0 0 16px;min-width:0}
+fieldset.card{margin:0 0 16px}fieldset.card legend{float:left;width:100%;padding:0;margin:0 0 16px;font:600 16px var(--hd);letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+fieldset.card legend::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--ac)}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(330px,1fr);gap:24px;align-items:start}
+.sticky{position:sticky;top:76px}
+.fl{clear:both;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+label{font-size:13px;font-weight:500;display:block;margin-bottom:6px;color:var(--tx)}
+input:not([type=checkbox]),select{width:100%;height:40px;background:var(--in);border:1px solid var(--bd);border-radius:9px;padding:0 12px;transition:border-color .15s,box-shadow .15s}
+input:not([type=checkbox]):focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 25%,transparent)}
+input[aria-invalid=true]{border-color:var(--bad)}
+.err{font-size:12px;color:var(--bad);margin-top:4px}.warn{font-size:12px;color:var(--wa);margin-top:4px}
+.sw{display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;padding-top:24px}
+.sw input{appearance:none;width:40px;height:22px;border-radius:99px;background:var(--bd);position:relative;transition:background .2s;flex:none;margin:0;cursor:pointer}
+.sw input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw input:checked{background:var(--ac)}.sw input:checked::after{transform:translateX(18px)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.chip{display:inline-flex;gap:6px;align-items:center;padding:4px 12px;border-radius:99px;font-weight:600;font-size:13px;background:var(--sf2);border:1px solid var(--bd)}
+.chip.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.chip.bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);border-color:color-mix(in srgb,var(--bad) 35%,transparent)}
+.chip.wa{background:color-mix(in srgb,var(--wa) 14%,transparent);color:var(--wa);border-color:color-mix(in srgb,var(--wa) 35%,transparent)}
+#result{background:linear-gradient(180deg,color-mix(in srgb,var(--ac) 8%,var(--sf)),var(--sf) 170px)}
+.big{font:800 68px/1 var(--hd);letter-spacing:-.05em;font-variant-numeric:tabular-nums;margin:8px 0}
+.track{position:relative;height:12px;border-radius:99px;background:var(--in);border:1px solid var(--bd);margin:40px 0 14px}
+.fill{height:100%;border-radius:99px;width:0;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.tick{position:absolute;top:-9px;bottom:-9px;width:2px;background:var(--tx);border-radius:2px}
+.tick span{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font:500 11px "JetBrains Mono",monospace;white-space:nowrap;color:var(--mu)}
+.xr{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.xb{position:relative;height:8px;background:var(--in);border-radius:9px}.xb i{position:absolute;top:0;bottom:0;border-radius:9px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.stat{padding:16px 18px;margin:0}.stat b{display:block;font:700 30px/1.15 var(--hd);letter-spacing:-.03em}.stat span{font-size:13px;color:var(--mu)}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:500;font-size:13px}tbody tr:last-child td{border-bottom:0}
+tr.r{cursor:pointer}tr.r:hover{background:var(--sf2)}
+.mb{display:inline-block;width:70px;height:6px;background:var(--in);border-radius:9px;vertical-align:middle;margin-right:8px;overflow:hidden}.mb i{display:block;height:100%}
+.empty{text-align:center;padding:32px;color:var(--mu)}
+.banner{border:1px solid color-mix(in srgb,var(--wa) 45%,transparent);background:color-mix(in srgb,var(--wa) 9%,var(--sf));border-radius:12px;padding:12px 16px;margin:16px 0}
+#demo{border-radius:0;margin:0;text-align:center;border-width:0 0 1px}
+.inv{display:grid;grid-template-columns:310px minmax(0,1fr);gap:20px;align-items:start}
+.cc{cursor:pointer;padding:16px;margin-bottom:12px;transition:border-color .15s}.cc:hover{border-color:var(--mu)}.cc[aria-current=true]{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 6%,var(--sf))}
+.rb{position:relative;height:8px;border-radius:9px;background:var(--in);margin:14px 0 6px}.rb i{display:block;height:100%;border-radius:9px}.rb u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--tx)}
+.gw{position:relative;overflow:hidden;padding:0}
+svg.g{width:100%;height:500px;display:block;touch-action:none;cursor:grab;background:radial-gradient(color-mix(in srgb,var(--mu) 28%,transparent) 1px,transparent 1.5px) 0 0/22px 22px,var(--in)}
+.tb{display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--bd);flex-wrap:wrap;font-family:var(--hd)}
+.lg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mu);padding:12px 16px;border-top:1px solid var(--bd)}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(310px,100%);background:var(--sf);border-left:1px solid var(--bd);padding:18px;transform:translateX(100%);transition:transform .25s;overflow:auto;z-index:2}.drawer.open{transform:none}
+.sk{background:linear-gradient(90deg,var(--sf2),var(--bd),var(--sf2));background-size:200% 100%;animation:sh 1.2s infinite;border-radius:12px;height:90px;margin-bottom:12px}@keyframes sh{to{background-position:-200% 0}}
+.e line{transition:stroke-width .3s}.e.hl line{stroke:var(--tx);stroke-width:5px}.e.hl polygon{fill:var(--tx)}
+#tip{position:fixed;z-index:60;pointer-events:none;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:7px 11px;font-size:12px}
+#toasts{position:fixed;bottom:16px;right:16px;display:grid;gap:8px;z-index:50}
+.toast{background:var(--sf2);border:1px solid var(--bd);padding:10px 14px;border-radius:10px}
+.pipe{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}.pipe .s{padding:9px 14px;border:1px solid var(--bd);border-radius:9px;background:var(--sf2);font-weight:500}.pipe .a{color:var(--ac)}
+.met{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+footer{max-width:1280px;margin:24px auto 0;padding:20px;color:var(--mu);font-size:13px;border-top:1px solid var(--bd)}
+ol li{margin-bottom:6px}
+@media(max-width:900px){.grid,.inv{grid-template-columns:1fr}.sticky{position:static}}
+@media(max-width:600px){.fl{grid-template-columns:1fr}.big{font-size:52px}nav{margin-left:0;width:100%;order:3}nav a{height:44px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="17" r="2.200"/><circle cx="19" cy="7" r="2.200" fill="currentColor"/><path d="M7 16c4-1 4-7 8-8" stroke-dasharray="1 4"/></svg>Tracer</div>
+  <nav role="tablist" aria-label="Pages">
+    <a role="tab" href="#check" id="t-check">Check</a><a role="tab" href="#investigate" id="t-investigate">Investigations</a><a role="tab" href="#about" id="t-about">About</a>
+  </nav>
+  <div class="right"><span class="pill" id="api"><i class="dot"></i><span>Checking API…</span></span><button class="btn sm" id="theme" aria-label="Switch colour theme">Theme</button></div>
+</div></header>
+<div class="banner" id="demo" hidden role="status"><b>DEMO MODE: predictions are simulated.</b> The prediction API could not be reached. <button class="btn sm" id="retry">Retry real API</button></div>
+
+<main>
+<section id="p-check" role="tabpanel" aria-labelledby="t-check">
+  <div class="hero"><h1>Score the transaction. Follow the money.</h1><p>Tracer rates a single transaction with an XGBoost model, then traces funds between accounts to surface coordinated patterns that one score can miss.</p></div>
+  <p class="help">Fill in the details, or start from an example input. Examples are only inputs, not labelled cases.</p>
+  <div class="row" id="samples"></div>
+  <div class="grid">
+    <form id="form" novalidate></form>
+    <aside class="sticky"><div class="card" id="result" aria-live="polite"></div></aside>
+  </div>
+  <h2 style="margin-top:24px">Session history</h2>
+  <div class="stats" id="hstats"></div>
+  <div class="card">
+    <div class="row">
+      <label class="sw" style="padding:0"><input type="checkbox" id="only" role="switch"><span>Flagged only</span></label>
+      <span style="margin-left:auto"></span><button class="btn sm" id="csv">Download CSV</button><button class="btn sm" id="clr">Clear</button>
+    </div>
+    <div class="tw" id="hist"></div>
+  </div>
+</section>
+
+<section id="p-investigate" role="tabpanel" aria-labelledby="t-investigate" hidden>
+  <div class="banner"><b>Synthetic network.</b> This dataset has no real receivers. Receiver accounts were generated for this demo, including the planted fraud rings and mule hub.</div>
+  <h2>Investigations <span class="chip wa" id="mockb" hidden>Demo data</span></h2>
+  <p>A single transaction score can miss coordinated activity. This view follows the money between accounts.</p>
+  <form id="lookup" class="row" style="max-width:640px"><input id="acct" style="flex:1" placeholder="Look up an account, e.g. USER_9853" aria-label="Account ID" autocomplete="off"><button class="btn pri" type="submit">Find</button><button class="btn" type="button" id="resetnet">Reset added transfers</button></form>
+  <div class="stats" id="istats"></div>
+  <div class="inv">
+    <div id="clist"></div>
+    <div>
+      <div class="card gw">
+        <div class="tb"><b id="gtitle">Select a cluster</b><span style="margin-left:auto"></span>
+          <button class="btn sm" id="zi" aria-label="Zoom in">+</button><button class="btn sm" id="zo" aria-label="Zoom out">−</button><button class="btn sm" id="fit">Fit to screen</button></div>
+        <svg class="g" id="svg" viewBox="0 0 900 480" role="img" aria-label="Account transfer graph"></svg>
+        <div class="drawer" id="drawer" aria-label="Account details"></div>
+        <div class="lg" id="legend"></div>
+      </div>
+      <details class="card"><summary>Graph as text</summary><div id="gtext" class="m help" style="margin-top:8px">Select a cluster to list its transfers.</div></details>
+      <p class="help">Most of these clusters average below the model’s flagging threshold, yet their structure gives them away.</p>
+    </div>
+  </div>
+</section>
+
+<section id="p-about" role="tabpanel" aria-labelledby="t-about" hidden></section>
+</main>
+<footer>Tracer · Built as a machine learning project: model, graph analysis and web app</footer>
+<div id="tip" hidden></div><div id="toasts"></div>
+
+<script>
+/* ===== 1. CONFIG (edit these) ===== */
+const API_BASE = "";
+let USE_MOCK_GRAPH = false;   // false = real backend. The page offers demo data if the backend has no network endpoints
+const MODEL_INFO = { accuracy: 0.876, threshold: 0.7513, precision: null, recall: null, f1: null, rocAuc: null, avgPrecision: null };
+const TRAINED_RANGES = { Transaction_Amount:[0,1174], Account_Balance:[500,99998], Daily_Transaction_Count:[1,14], Avg_Transaction_Amount_7d:[10,500], Failed_Transaction_Count_7d:[0,4], Card_Age:[1,239], Transaction_Distance:[0.25,4999.93] };
+const OPTS = {
+  Transaction_Type:["ATM Withdrawal","Bank Transfer","Online","POS"], Device_Type:["Laptop","Mobile","Tablet"],
+  Card_Type:["Amex","Discover","Mastercard","Visa"], Authentication_Method:["Biometric","OTP","PIN","Password"],
+  Merchant_Category:["Clothing","Electronics","Groceries","Restaurants","Travel"], Location:["London","Mumbai","New York","Sydney","Tokyo"]
+};
+// [field, label, control type]; types: sel, dt, num, int, flag
+const GROUPS = [
+ ["Transaction",[["Transaction_Type","Transaction type","sel"],["Transaction_Amount","Amount","num"],["Timestamp","Date and time","dt"],["Merchant_Category","Merchant category","sel"],["Location","Location","sel"]]],
+ ["Account",[["Account_Balance","Account balance","num"],["Card_Type","Card type","sel"],["Card_Age","Card age (months)","int"],["Previous_Fraudulent_Activity","Previous fraud on account","flag"]]],
+ ["Behaviour and device",[["Device_Type","Device","sel"],["Authentication_Method","Authentication method","sel"],["IP_Address_Flag","Suspicious IP address","flag"],["Daily_Transaction_Count","Transactions today","int"],["Avg_Transaction_Amount_7d","Average amount (last 7 days)","num"],["Failed_Transaction_Count_7d","Failed transactions (last 7 days)","int"],["Transaction_Distance","Distance from home (km)","num"],["Is_Weekend","Weekend","flag"]]],
+ ["Money trail (optional)",[["Sender_ID","Sender account","txt"],["Receiver_ID","Receiver account","txt"]]]
+];
+const SAMPLES = {
+ "Everyday purchase":{Timestamp:"2023-08-16T13:10",Transaction_Type:"POS",Device_Type:"Mobile",Card_Type:"Visa",Authentication_Method:"PIN",Merchant_Category:"Groceries",Location:"London",Transaction_Amount:42,Account_Balance:8500,IP_Address_Flag:0,Previous_Fraudulent_Activity:0,Daily_Transaction_Count:2,Avg_Transaction_Amount_7d:55,Failed_Transaction_Count_7d:0,Card_Age:90,Transaction_Distance:3,Is_Weekend:0},
+ "Late-night, far from home":{Timestamp:"2023-08-12T02:40",Transaction_Type:"Online",Device_Type:"Mobile",Card_Type:"Visa",Authentication_Method:"Password",Merchant_Category:"Electronics",Location:"Mumbai",Transaction_Amount:820,Account_Balance:3200,IP_Address_Flag:1,Previous_Fraudulent_Activity:0,Daily_Transaction_Count:9,Avg_Transaction_Amount_7d:60,Failed_Transaction_Count_7d:2,Card_Age:6,Transaction_Distance:3800,Is_Weekend:1},
+ "Many failed attempts":{Timestamp:"2023-08-14T23:15",Transaction_Type:"Bank Transfer",Device_Type:"Laptop",Card_Type:"Amex",Authentication_Method:"OTP",Merchant_Category:"Travel",Location:"Tokyo",Transaction_Amount:640,Account_Balance:2100,IP_Address_Flag:1,Previous_Fraudulent_Activity:1,Daily_Transaction_Count:11,Avg_Transaction_Amount_7d:90,Failed_Transaction_Count_7d:4,Card_Age:12,Transaction_Distance:1200,Is_Weekend:0}
+};
+
+/* ===== 2. UTILITIES ===== */
+const $ = s => document.querySelector(s);
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pct = (p, d = 1) => (p * 100).toFixed(d) + "%";
+const riskColor = p => `hsl(${Math.round((1 - Math.min(Math.max(p, 0), 1)) * 130)},68%,48%)`;
+// Safe element builders: text always goes through text nodes, never innerHTML
+const h = (t, a = {}, ...c) => { const e = document.createElement(t);
+  for (const [k, v] of Object.entries(a)) k.startsWith("on") ? e.addEventListener(k.slice(2), v) : e.setAttribute(k, v);
+  c.flat().forEach(x => e.append(x instanceof Node ? x : document.createTextNode(x))); return e; };
+const sv = (t, a = {}, ...c) => { const e = document.createElementNS("http://www.w3.org/2000/svg", t);
+  for (const [k, v] of Object.entries(a)) k.startsWith("on") ? e.addEventListener(k.slice(2), v) : e.setAttribute(k, v);
+  c.flat().forEach(x => e.append(x instanceof Node ? x : document.createTextNode(x))); return e; };
+function toast(t) { const e = h("div", { class: "toast" }, t); $("#toasts").append(e); setTimeout(() => e.remove(), 3200); }
+function tip(e, lines) { const t = $("#tip"); if (!lines) { t.hidden = true; return; }
+  t.replaceChildren(...lines.map(l => h("div", {}, l))); t.hidden = false; t.style.left = Math.min(e.clientX + 14, innerWidth - 200) + "px"; t.style.top = e.clientY + 14 + "px"; }
+
+/* ===== 3. STATE ===== */
+const st = { mode: "live", thr: MODEL_INFO.threshold, hist: [], only: false, last: null };
+
+/* ===== 4. PREDICTION API ===== */
+async function predict(d) {
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 15000);
+  try {
+    const r = await fetch(API_BASE + "/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d), signal: ac.signal });
+    if (r.status === 404 || r.status === 405) throw 0;               // no API behind this host
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return { res: { p: j.fraud_probability, flag: j.is_flagged, thr: j.threshold, ex: Array.isArray(j.explanations) ? j.explanations : null, net: j.network || null } };
+    if (r.status === 422) return { fields: j.detail };
+    return { fail: typeof j.detail === "string" ? j.detail : "Server error (" + r.status + ")" };
+  } catch (e) { return { down: true }; } finally { clearTimeout(tm); }
+}
+// Local simulation used ONLY in demo mode. Not the real model.
+function simulate(d) {
+  const hr = new Date(d.Timestamp).getHours();
+  const z = -3.4 + d.IP_Address_Flag * 1.2 + d.Previous_Fraudulent_Activity * 1.4 + d.Failed_Transaction_Count_7d * 0.5 + Math.min(d.Transaction_Distance, 5000) / 2500 * 0.8
+    + d.Transaction_Amount / 600 + (hr < 5 || hr > 22 ? 0.6 : 0) + (d.Card_Age < 12 ? 0.5 : 0) + d.Daily_Transaction_Count * 0.06;
+  const p = 1 / (1 + Math.exp(-z));
+  return { p, flag: p >= MODEL_INFO.threshold, thr: MODEL_INFO.threshold, ex: null };
+}
+function setApi(kind) {
+  const m = { live: ["var(--ok)", "API online"], demo: ["var(--wa)", "Demo mode"], off: ["var(--bad)", "Offline"] }[kind];
+  $("#api .dot").style.background = m[0]; $("#api span").textContent = m[1]; $("#demo").hidden = kind !== "demo";
+}
+
+/* ===== 5. CHECK PAGE: form ===== */
+const FORM = $("#form"), F = {};
+GROUPS.forEach(([title, fs]) => {
+  const g = h("div", { class: "fl" });
+  fs.forEach(([k, lab, t]) => {
+    const id = "f_" + k; let c;
+    if (t === "sel") c = h("select", { id }, OPTS[k].map(o => h("option", { value: o }, o)));
+    else if (t === "dt") c = h("input", { id, type: "datetime-local" });
+    else if (t === "flag") c = h("input", { id, type: "checkbox", role: "switch" });
+    else if (t === "txt") c = h("input", { id, type: "text", maxlength: "30", autocomplete: "off", placeholder: k === "Sender_ID" ? "e.g. USER_5000" : "e.g. USER_5001" });
+    else c = h("input", { id, type: "number", min: "0", step: t === "int" ? "1" : "any", inputmode: "decimal" });
+    const m = h("div", { class: "err", id: "e_" + k });
+    F[k] = { c, t, m };
+    const r = TRAINED_RANGES[k], unit = k === "Card_Age" ? " months" : k === "Transaction_Distance" ? " km" : "";
+    const help = r ? h("div", { class: "help" }, `Trained on ${r[0].toLocaleString()} to ${r[1].toLocaleString()}${unit}`) : t === "txt" ? h("div", { class: "help" }, "Optional. Fill both to add this transfer to the network on the Investigations page.") : "";
+    if (t === "flag") g.append(h("div", {}, h("label", { class: "sw", for: id, title: k === "Is_Weekend" ? "Auto-set from the chosen date. The dataset’s weekend column is inconsistent with its timestamps, so you can override it." : "" }, c, h("span", {}, lab)), k === "Is_Weekend" ? h("div", { class: "help" }, "Auto-set from the date; you can override it.") : "", m));
+    else g.append(h("div", {}, h("label", { for: id }, lab), c, help, m));
+  });
+  FORM.append(h("fieldset", { class: "card" }, h("legend", {}, title), g));
+});
+const submitBtn = h("button", { class: "btn pri", type: "submit" }, "Check transaction");
+FORM.append(h("div", { class: "row" }, submitBtn, h("button", { class: "btn", type: "button", onclick: () => setForm(null) }, "Reset")));
+
+function msg(k, t, kind = "err") { const m = F[k].m; m.textContent = t || ""; m.className = kind; F[k].c.setAttribute("aria-invalid", kind === "err" && t ? "true" : "false"); }
+function rangeWarn(k) { msg(k, ""); const r = TRAINED_RANGES[k], v = F[k].c.value;
+  if (r && v !== "" && (+v < r[0] || +v > r[1])) msg(k, "Outside the range the model was trained on, so the score may be unreliable.", "warn"); }
+function setForm(d) {
+  for (const [k, { c, t }] of Object.entries(F)) {
+    if (t === "sel") c.value = d ? d[k] : OPTS[k][0];
+    else if (t === "flag") c.checked = d ? !!d[k] : false;
+    else if (t === "dt") c.value = d ? d[k].slice(0, 16) : new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+    else c.value = d ? (d[k] ?? "") : "";
+    msg(k, ""); rangeWarn(k);
+  }
+  if (!d) syncWeekend();
+}
+function syncWeekend() { const v = F.Timestamp.c.value; if (v) F.Is_Weekend.c.checked = [0, 6].includes(new Date(v).getDay()); }
+F.Timestamp.c.addEventListener("change", syncWeekend);
+Object.keys(TRAINED_RANGES).forEach(k => F[k].c.addEventListener("input", () => rangeWarn(k)));
+Object.entries(SAMPLES).forEach(([n, d]) => $("#samples").append(h("button", { class: "btn sm", type: "button", onclick: () => setForm(d) }, n)));
+
+function getData() {
+  const d = {}, er = {};
+  for (const [k, { c, t }] of Object.entries(F)) {
+    let v;
+    if (t === "sel") v = c.value;
+    else if (t === "flag") v = c.checked ? 1 : 0;
+    else if (t === "dt") { if (!c.value) { er[k] = "Pick a date and time."; continue; } v = c.value.length === 16 ? c.value + ":00" : c.value; }
+    else if (t === "txt") { v = c.value.trim().toUpperCase(); if (!v) continue; if (!/^[A-Z0-9_-]{1,30}$/.test(v)) { er[k] = "Use letters, numbers, _ or -."; continue; } }
+    else { if (c.value === "" || isNaN(+c.value)) { er[k] = "Enter a number."; continue; } v = +c.value;
+      if (v < 0) er[k] = "Must be 0 or more."; else if (t === "int" && !Number.isInteger(v)) er[k] = "Must be a whole number."; }
+    d[k] = v;
+  }
+  if (!d.Sender_ID !== !d.Receiver_ID) er[d.Sender_ID ? "Receiver_ID" : "Sender_ID"] = "Fill both accounts, or leave both empty.";
+  return { d, er };
+}
+
+/* ===== 6. CHECK PAGE: submit + result ===== */
+FORM.addEventListener("submit", e => { e.preventDefault(); run(); });
+$("#retry").addEventListener("click", () => run());
+async function run() {
+  const { d, er } = getData();
+  Object.keys(F).forEach(k => er[k] ? msg(k, er[k]) : rangeWarn(k));
+  const bad = Object.keys(er)[0];
+  if (bad) { F[bad].c.focus(); toast("Fix the highlighted fields."); return; }
+  submitBtn.disabled = true; submitBtn.textContent = "Checking…";
+  const r = await predict(d);
+  submitBtn.disabled = false; submitBtn.textContent = "Check transaction";
+  if (r.fields) { (Array.isArray(r.fields) ? r.fields : []).forEach(x => { const k = x.loc[x.loc.length - 1]; F[k] ? msg(k, x.msg) : toast(x.msg); }); toast("The server rejected some fields."); return; }
+  if (r.fail) { setApi("off"); return showError(r.fail); }
+  let R;
+  if (r.down) { st.mode = "demo"; setApi("demo"); toast("Can’t reach the server. Showing a simulated result."); R = { ...simulate(d), demo: true }; }
+  else { st.mode = "live"; setApi("live"); R = { ...r.res, demo: false }; st.thr = R.thr; }
+  st.last = { d, R };
+  if (R.net) { invReady = false; toast("Transfer added to the network. Open Investigations to see it."); }
+  else if (d.Sender_ID && R.demo) toast("Demo mode: this transfer was not added to the network.");
+  st.hist.unshift({ t: new Date(), d, p: R.p, flag: R.flag, demo: R.demo }); st.hist = st.hist.slice(0, 50);
+  showResult(R); renderHist();
+}
+function showError(t) {
+  $("#result").replaceChildren(h("h2", {}, "Prediction failed"), h("p", { class: "err" }, t), h("button", { class: "btn pri", onclick: () => run() }, "Retry"));
+}
+function countUp(el, to) {
+  if (RM) { el.textContent = pct(to); return; }
+  const t0 = performance.now(); const f = t => { const k = Math.min((t - t0) / 700, 1); el.textContent = pct(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}
+function showResult(R) {
+  const near = !R.flag && R.p >= R.thr - 0.1, col = R.flag ? "var(--bad)" : near ? "var(--wa)" : "var(--ok)";
+  const num = h("div", { class: "big m" }, "0.0%"), fill = h("div", { class: "fill", style: "background:" + col });
+  const why = h("div", {}, h("h3", {}, "Why this score"));
+  if (R.ex && R.ex.length) { const mx = Math.max(...R.ex.map(x => Math.abs(x.impact)), 1e-9);
+    R.ex.forEach(x => why.append(h("div", { class: "xr" }, h("span", {}, String(x.feature).replaceAll("_", " ")),
+      h("span", { class: "xb" }, h("i", { style: `width:${Math.abs(x.impact) / mx * 50}%;` + (x.impact >= 0 ? "left:50%;background:var(--bad)" : "right:50%;background:var(--ok)") })),
+      h("span", { class: "m" }, (x.impact > 0 ? "+" : "") + x.impact.toFixed(2))))); }
+  else why.append(h("p", { class: "help" }, "Per-transaction explanations are not available yet."));
+  $("#result").replaceChildren(
+    h("h2", {}, "Risk assessment"), R.demo ? h("div", { class: "row" }, h("span", { class: "chip wa" }, "Simulated, not the real model")) : "",
+    num, h("div", { class: "track" }, fill, h("div", { class: "tick", style: `left:${R.thr * 100}%` }, h("span", {}, "Threshold " + pct(R.thr)))),
+    h("div", { class: "row" }, h("span", { class: "chip " + (R.flag ? "bad" : "ok") }, R.flag ? "⚑ Flagged for review" : "✓ Not flagged"), near ? h("span", { class: "chip wa" }, "Near the threshold") : ""),
+    h("p", {}, `The ${R.demo ? "simulated score" : "model scores this transaction"} ${R.demo ? "is" : "at"} ${pct(R.p)}, ${R.flag ? "at or above" : "below"} the ${pct(R.thr)} flagging threshold.`),
+    why, h("button", { class: "btn sm", style: "margin-top:12px", onclick: async () => { try { await navigator.clipboard.writeText(JSON.stringify({ fraud_probability: R.p, is_flagged: R.flag, threshold: R.thr, simulated: R.demo }, null, 2)); toast("Result copied as JSON."); } catch (e) { toast("Copy isn’t available in this browser."); } } }, "Copy result as JSON"));
+  countUp(num, R.p); setTimeout(() => fill.style.width = Math.min(R.p * 100, 100) + "%", 30);
+}
+function resetResult() { $("#result").replaceChildren(h("h2", {}, "Risk assessment"), h("p", { class: "help" }, "Submit a transaction to see its risk score and where it sits against the flagging threshold.")); }
+
+/* ===== 7. CHECK PAGE: history ===== */
+function renderHist() {
+  const H = st.hist, fl = H.filter(x => x.flag), n = H.length, rows = st.only ? fl : H;
+  $("#hstats").replaceChildren(...[["Checked", n], ["Flagged", fl.length], ["Flag rate", n ? pct(fl.length / n) : "—"], ["Average probability", n ? pct(H.reduce((a, x) => a + x.p, 0) / n) : "—"]]
+    .map(([l, v]) => h("div", { class: "card stat" }, h("b", { class: "m" }, String(v)), h("span", {}, l))));
+  if (!rows.length) { $("#hist").replaceChildren(h("div", { class: "empty" },
+    sv("svg", { width: 64, height: 64, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 1.5, "aria-hidden": "true" }, sv("rect", { x: 4, y: 3, width: 16, height: 18, rx: 2 }), sv("path", { d: "M8 8h8M8 12h8M8 16h5" })),
+    h("p", {}, st.only ? "No flagged transactions in this session." : "No transactions checked yet. Submit one above."))); return; }
+  const th = ["Time", "Type", "Amount", "Location", "Probability", "Verdict"];
+  $("#hist").replaceChildren(h("table", {}, h("thead", {}, h("tr", {}, th.map(x => h("th", {}, x)))), h("tbody", {}, rows.map(x => h("tr", { class: "r", tabindex: "0", title: "Load into form",
+    onclick: () => { setForm(x.d); scrollTo({ top: 0 }); toast("Transaction loaded into the form."); } },
+    h("td", { class: "m" }, x.t.toLocaleTimeString()), h("td", {}, x.d.Transaction_Type), h("td", { class: "m" }, x.d.Transaction_Amount.toFixed(2)), h("td", {}, x.d.Location),
+    h("td", { class: "m" }, h("span", { class: "mb" }, h("i", { style: `width:${x.p * 100}%;background:${riskColor(x.p)}` })), pct(x.p)),
+    h("td", {}, h("span", { class: "chip " + (x.flag ? "bad" : "ok") }, x.flag ? "Flagged" : "Not flagged"), x.demo ? " (sim)" : ""))))));
+  $("#hist tbody").addEventListener("keydown", e => { if (e.key === "Enter") e.target.closest("tr")?.click(); });
+}
+$("#only").addEventListener("change", e => { st.only = e.target.checked; renderHist(); });
+$("#clr").addEventListener("click", () => { st.hist = []; renderHist(); toast("History cleared."); });
+$("#csv").addEventListener("click", () => {
+  if (!st.hist.length) return toast("Nothing to download yet.");
+  const keys = Object.keys(st.hist[0].d), q = v => `"${String(v).replaceAll('"', '""')}"`;
+  const lines = [["Checked_At", ...keys, "Fraud_Probability", "Flagged", "Simulated"].join(",")].concat(st.hist.map(x => [x.t.toISOString(), ...keys.map(k => x.d[k]), x.p, x.flag, x.demo].map(q).join(",")));
+  const a = h("a", { href: URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" })), download: "session_transactions.csv" }); a.click(); URL.revokeObjectURL(a.href); toast("CSV downloaded.");
+});
+
+/* ===== 8. NETWORK DATA LAYER (mock now, real endpoints later) ===== */
+// MOCK DATA: cluster ids, shapes, sizes and average risks are from the real run; cluster 1 ids are real.
+// All other account ids, edge probabilities and amounts below are ILLUSTRATIVE.
+const OFF = [0.03, 0.01, 0, -0.01, -0.03], HOFF = [0.1, 0.06, 0.03, 0, -0.02, -0.04, -0.06, -0.08, 0.01];
+function mkCluster(id, shape, avg, ids, offs, mules = []) {
+  const edges = []; const link = (s, t, i) => edges.push({ source: s, target: t, mean_prob: +(avg + offs[i]).toFixed(3), n_txn: 1, total_amount: 60 + ((i * 53 + id * 29) % 140) });
+  if (shape === "chain") ids.slice(0, -1).forEach((a, i) => link(a, ids[i + 1], i));
+  else { ids.slice(0, 8).forEach((a, i) => link(a, ids[8], i)); link(ids[8], ids[9], 8); }
+  const nodes = ids.map(n => { const ps = edges.filter(e => e.source === n || e.target === n).map(e => e.mean_prob);
+    return { id: n, kind: n.startsWith("OFFSHORE_") ? "offshore" : "user", risk: +(ps.reduce((a, b) => a + b, 0) / ps.length).toFixed(3) }; });
+  return { id, shape: shape === "chain" ? "chain" : "fan-in hub", avg_risk: avg, nodes, edges, mules };
+}
+const MOCK = [
+  mkCluster(1, "chain", 0.751, ["USER_9853", "USER_8700", "USER_9737", "USER_2908", "USER_2828", "OFFSHORE_RING6"], OFF),
+  mkCluster(2, "chain", 0.643, ["USER_4417", "USER_1086", "USER_6231", "USER_7790", "USER_2504", "OFFSHORE_RING1"], OFF),
+  mkCluster(3, "chain", 0.537, ["USER_3120", "USER_5871", "USER_0942", "USER_8265", "USER_1739", "OFFSHORE_RING2"], OFF),
+  mkCluster(4, "chain", 0.537, ["USER_6604", "USER_2391", "USER_7018", "USER_4852", "USER_9126", "OFFSHORE_RING3"], OFF),
+  mkCluster(5, "chain", 0.431, ["USER_1573", "USER_8847", "USER_3306", "USER_5029", "USER_7461", "OFFSHORE_RING4"], OFF),
+  mkCluster(6, "chain", 0.428, ["USER_2688", "USER_9340", "USER_4175", "USER_6913", "USER_0587", "OFFSHORE_RING5"], OFF),
+  mkCluster(7, "hub", 0.393, ["USER_1204", "USER_3869", "USER_5512", "USER_7733", "USER_8091", "USER_2476", "USER_6358", "USER_9904", "USER_3537", "OFFSHORE_HUB"], HOFF, ["USER_3537"])
+];
+const STATS = { accounts: 8971, edges: 39, mules: 1 };   // mock defaults for the stat tiles
+const api = async p => { const r = await fetch(API_BASE + p); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
+const getClusters = async () => USE_MOCK_GRAPH ? (await sleep(300), MOCK.map(c => ({ id: c.id, shape: c.shape, n_accounts: c.nodes.length, n_edges: c.edges.length, avg_risk: c.avg_risk }))) : api("/clusters");
+const getCluster = async id => USE_MOCK_GRAPH ? (await sleep(200), MOCK.find(c => c.id === id)) : api("/clusters/" + id);
+const traceForward = async (a, hops = 6) => {
+  if (!USE_MOCK_GRAPH) return api(`/trace/${encodeURIComponent(a)}?hops=${hops}`);
+  const c = MOCK.find(c => c.nodes.some(n => n.id === a)), out = [];
+  const walk = p => c.edges.filter(e => e.source === p[p.length - 1]).forEach(e => { const q = [...p, e.target]; if (q.length - 1 <= hops) { out.push(q); walk(q); } });
+  walk([a]); return { start: a, paths: out };
+};
+
+/* ===== 9. INVESTIGATIONS PAGE ===== */
+let invReady = false, view = { x: 0, y: 0, k: 1 }, EDG = {}, curCluster = null;
+const VW = 900, VH = 480;
+async function initInv() {
+  invReady = true; $("#mockb").hidden = !USE_MOCK_GRAPH;
+  $("#clist").replaceChildren(...[1, 2, 3, 4].map(() => h("div", { class: "sk" })));
+  try {
+    const cl = await getClusters(); const S = USE_MOCK_GRAPH ? STATS : await api("/network/stats");
+    $("#istats").replaceChildren(...[["Clusters found", cl.length], ["Accounts in transfer graph", S.accounts.toLocaleString()], ["Suspicious transfer edges", S.edges], ["Mules detected", S.mules]]
+      .map(([l, v]) => h("div", { class: "card stat" }, h("b", { class: "m" }, String(v)), h("span", {}, l))));
+    $("#clist").replaceChildren(...cl.map(c => { const card = h("div", { class: "card cc", tabindex: "0", role: "button", "data-id": c.id, "aria-label": `Open cluster ${c.id}`, onclick: () => openCluster(c.id), onkeydown: e => { if (e.key === "Enter") openCluster(c.id); } },
+      h("div", { class: "row", style: "margin:0" }, h("b", {}, "Cluster " + c.id), h("span", { class: "chip" }, c.shape === "chain" ? "Chain" : "Fan-in hub")),
+      h("div", { class: "help" }, `${c.n_accounts} accounts, ${c.n_edges} transfers`),
+      h("div", { class: "rb" }, h("i", { style: `width:${c.avg_risk * 100}%;background:${riskColor(c.avg_risk)}` }), h("u", { style: `left:${st.thr * 100}%`, title: "Flagging threshold" })),
+      h("div", { class: "help m" }, `Avg edge risk ${pct(c.avg_risk)} · threshold ${pct(st.thr)}`)); return card; }));
+    openCluster(cl[0].id);
+  } catch (e) { $("#clist").replaceChildren(h("div", { class: "card" }, h("p", { class: "err" }, "Couldn’t load clusters: " + e.message), h("div", { class: "row" }, h("button", { class: "btn sm", onclick: initInv }, "Retry"), h("button", { class: "btn sm", onclick: () => { USE_MOCK_GRAPH = true; initInv(); } }, "Use demo data")))); }
+}
+async function openCluster(id) {
+  document.querySelectorAll(".cc").forEach(e => e.setAttribute("aria-current", e.dataset.id == id));
+  $("#drawer").classList.remove("open"); $("#gtitle").textContent = "Loading cluster " + id + "…"; $("#svg").replaceChildren();
+  try { curCluster = await getCluster(id); drawGraph(curCluster); }
+  catch (e) { $("#gtitle").textContent = "Couldn’t load this cluster (" + e.message + ")"; }
+}
+function applyView() { $("#vp")?.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`); }
+function zoom(f) { const k = Math.min(Math.max(view.k * f, 0.4), 4), cx = VW / 2, cy = VH / 2; view = { x: cx - (cx - view.x) * k / view.k, y: cy - (cy - view.y) * k / view.k, k }; applyView(); }
+function drawGraph(c) {
+  const ids = c.nodes.map(n => n.id), dep = {}; ids.forEach(i => dep[i] = 0);
+  for (let k = 0; k < ids.length; k++) c.edges.forEach(e => dep[e.target] = Math.max(dep[e.target], dep[e.source] + 1));
+  const md = Math.max(...Object.values(dep), 1), layers = {}; ids.forEach(i => (layers[dep[i]] ??= []).push(i));
+  const pos = {}, P = 80;
+  Object.entries(layers).forEach(([d, l]) => l.forEach((i, j) => pos[i] = { x: P + d * (VW - 2 * P) / md, y: VH / 2 + (j - (l.length - 1) / 2) * Math.min(56, (VH - 120) / Math.max(l.length - 1, 1)) }));
+  const nd = Object.fromEntries(c.nodes.map(n => [n.id, n])), vp = sv("g", { id: "vp" }); EDG = {};
+  c.edges.forEach(e => {
+    const a = pos[e.source], b = pos[e.target], an = Math.atan2(b.y - a.y, b.x - a.x), ux = Math.cos(an), uy = Math.sin(an), R = 22;
+    const x1 = a.x + ux * R, y1 = a.y + uy * R, x2 = b.x - ux * R, y2 = b.y - uy * R, col = riskColor(e.mean_prob), w = 1.5 + Math.min(e.total_amount / 60, 3.5);
+    const bx = x2 - ux * 11, by = y2 - uy * 11, lines = [`${e.source} → ${e.target}`, "Probability " + pct(e.mean_prob), e.n_txn + " transaction(s)", "Amount " + e.total_amount.toFixed(2)];
+    const g = sv("g", { class: "e", onpointermove: ev => tip(ev, lines), onpointerleave: ev => tip(ev, null) },
+      sv("line", { x1, y1, x2: bx, y2: by, stroke: col, "stroke-width": w, "stroke-linecap": "round" }),
+      sv("polygon", { points: `${x2},${y2} ${bx - uy * 6},${by + ux * 6} ${bx + uy * 6},${by - ux * 6}`, fill: col }),
+      sv("line", { x1, y1, x2, y2, stroke: "transparent", "stroke-width": 14 }));
+    EDG[e.source + ">" + e.target] = g; vp.append(g);
+  });
+  c.nodes.forEach(n => {
+    const p = pos[n.id], mule = c.mules.includes(n.id), fill = riskColor(n.risk);
+    const shape = n.kind === "offshore" ? sv("polygon", { points: "0,-22 22,0 0,22 -22,0", fill, stroke: "var(--bg)", "stroke-width": 2 }) : sv("circle", { r: 18, fill, stroke: "var(--bg)", "stroke-width": 2 });
+    const lines = [n.id, "Kind: " + (mule ? "user (possible mule)" : n.kind), "Risk " + pct(n.risk)];
+    const g = sv("g", { transform: `translate(${p.x},${p.y})`, tabindex: "0", role: "button", style: "cursor:pointer", "aria-label": `Account ${n.id}, ${n.kind}, risk ${pct(n.risk)}`,
+      onclick: () => openDrawer(n), onkeydown: ev => { if (ev.key === "Enter") openDrawer(n); }, onpointermove: ev => tip(ev, lines), onpointerleave: ev => tip(ev, null) },
+      mule ? sv("circle", { r: 26, fill: "none", stroke: "var(--ac)", "stroke-width": 3, "stroke-dasharray": "5 3" }) : "", shape,
+      mule ? sv("text", { y: -34, "text-anchor": "middle", fill: "var(--ac)", "font-size": 12, "font-weight": 700 }, "Mule") : "",
+      sv("text", { y: 40, "text-anchor": "middle", fill: "var(--tx)", "font-size": 11, "font-family": "JetBrains Mono,monospace" }, n.id.replace("OFFSHORE_", "OFF_")),
+      sv("text", { y: 54, "text-anchor": "middle", fill: "var(--mu)", "font-size": 10, "font-family": "JetBrains Mono,monospace" }, pct(n.risk)));
+    vp.append(g);
+  });
+  const bg = sv("rect", { width: VW, height: VH, fill: "transparent", id: "bgr" });
+  $("#svg").replaceChildren(bg, vp); view = { x: 0, y: 0, k: 1 }; applyView();
+  $("#gtitle").textContent = `Cluster ${c.id} · ${c.shape} · avg risk ${pct(c.avg_risk)}`;
+  $("#gtext").replaceChildren(...c.edges.map(e => h("div", {}, `${e.source} → ${e.target} · ${pct(e.mean_prob)} · ${e.n_txn} txn · ${e.total_amount.toFixed(2)}`)), c.mules.length ? h("div", {}, "Possible mule: " + c.mules.join(", ")) : "");
+}
+(() => { const svg = $("#svg"); let drag = null;
+  svg.addEventListener("pointerdown", e => { if (e.target.id === "bgr") { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; svg.setPointerCapture(e.pointerId); } });
+  svg.addEventListener("pointermove", e => { if (!drag) return; const f = VW / svg.clientWidth; view.x = drag.vx + (e.clientX - drag.x) * f; view.y = drag.vy + (e.clientY - drag.y) * f; applyView(); });
+  svg.addEventListener("pointerup", () => drag = null);
+  svg.addEventListener("wheel", e => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.12 : 0.89); }, { passive: false });
+  $("#zi").onclick = () => zoom(1.25); $("#zo").onclick = () => zoom(0.8); $("#fit").onclick = () => { view = { x: 0, y: 0, k: 1 }; applyView(); };
+})();
+function openDrawer(n) {
+  const c = curCluster, inn = c.edges.filter(e => e.target === n.id).length, out = c.edges.filter(e => e.source === n.id).length, res = h("div", { class: "m help", "aria-live": "polite" });
+  $("#drawer").replaceChildren(
+    h("div", { class: "row" }, h("b", { class: "m" }, n.id), h("button", { class: "btn sm", style: "margin-left:auto", "aria-label": "Close details", onclick: () => $("#drawer").classList.remove("open") }, "✕")),
+    h("p", {}, `Kind: ${n.kind}${c.mules.includes(n.id) ? " (possible mule)" : ""}`), h("p", {}, "Risk: " + pct(n.risk) + (n.risk >= st.thr ? " (at or above threshold)" : " (below threshold)")),
+    h("p", {}, `Transfers in: ${inn} · out: ${out}`),
+    h("button", { class: "btn pri", onclick: () => trace(n.id, res) }, "Trace money forward"), h("div", { style: "margin-top:12px" }, res));
+  $("#drawer").classList.add("open");
+}
+async function trace(id, out) {
+  out.textContent = "Tracing…"; document.querySelectorAll(".e.hl").forEach(e => e.classList.remove("hl"));
+  try { const t = await traceForward(id, 6);
+    if (!t.paths.length) { out.textContent = "No outgoing transfers from this account."; return; }
+    out.replaceChildren(...t.paths.map(p => h("div", { style: "margin-bottom:6px" }, p.join(" → "))));
+    const lp = t.paths.reduce((a, b) => b.length > a.length ? b : a);
+    for (let i = 0; i < lp.length - 1; i++) { await sleep(RM ? 0 : 450); EDG[lp[i] + ">" + lp[i + 1]]?.classList.add("hl"); }
+  } catch (e) { out.textContent = "Trace failed: " + e.message; }
+}
+$("#legend").replaceChildren(
+  h("span", {}, "● circle = user"), h("span", {}, "◆ diamond = offshore"), h("span", {}, "◌ dashed ring = possible mule"), h("span", {}, "Arrow = direction of money"),
+  h("span", {}, "Colour = risk: "), h("span", { class: "m", style: "color:" + riskColor(0.1) }, "low"), h("span", { class: "m", style: "color:" + riskColor(0.5) }, "medium"), h("span", { class: "m", style: "color:" + riskColor(0.9) }, "high"),
+  h("span", {}, "Thickness = amount. Risk is also shown as text."));
+
+$("#lookup").addEventListener("submit", async e => {
+  e.preventDefault(); const id = $("#acct").value.trim().toUpperCase(); if (!id) return;
+  try {
+    if (!invReady) await initInv();
+    const cid = USE_MOCK_GRAPH ? MOCK.find(c => c.nodes.some(n => n.id === id))?.id : (await api("/accounts/" + encodeURIComponent(id))).cluster_id;
+    if (cid == null) return toast("That account isn’t part of any cluster.");
+    await openCluster(cid); openDrawer(curCluster.nodes.find(n => n.id === id));
+  } catch (err) { toast("Account not found."); }
+});
+$("#resetnet").addEventListener("click", async () => {
+  if (USE_MOCK_GRAPH) return toast("Demo data has no added transfers.");
+  try { await fetch(API_BASE + "/network/reset", { method: "POST" }); toast("Added transfers cleared."); initInv(); } catch (err) { toast("Couldn’t reach the server."); }
+});
+/* ===== 10. ABOUT PAGE ===== */
+function renderAbout() {
+  const M = MODEL_INFO, mets = [["Accuracy (author-reported, approx.)", M.accuracy], ["Decision threshold", M.threshold], ["Precision", M.precision], ["Recall", M.recall], ["F1", M.f1], ["ROC-AUC", M.rocAuc], ["Average precision", M.avgPrecision]].filter(x => x[1] !== null);
+  const pipe = a => h("div", { class: "pipe" }, a.flatMap((x, i) => i ? [h("span", { class: "a", "aria-hidden": "true" }, "→"), h("span", { class: "s" }, x)] : [h("span", { class: "s" }, x)]));
+  $("#p-about").replaceChildren(
+    h("h2", {}, "About the model"),
+    h("div", { class: "card" }, h("h3", {}, "Model card"),
+      h("p", {}, "An XGBoost classifier (100 trees, learning rate 0.01, depth 3) that outputs a fraud probability between 0 and 1 for a single transaction."),
+      h("p", {}, "Features: six categorical fields (transaction type, device, card type, authentication method, merchant category, location) one-hot encoded; numeric fields (amount, balance, IP flag, previous fraud flag, daily count, 7-day average amount, 7-day failed count, card age, distance, weekend flag) standardised; and time features (hour, day of week, corrected weekend flag) derived from the timestamp on the server. The dataset’s own risk score is not used."),
+      h("p", {}, `Threshold: ${pct(M.threshold, 2)}, chosen on validation data to maximise F1. A transaction is flagged when its probability is greater than or equal to the threshold.`),
+      h("p", {}, "Data: synthetic, 50,000 transactions from 8,964 users, about 32% labelled fraud. Split 60/20/20 into train, validation and test sets.")),
+    h("div", { class: "card" }, h("h3", {}, "Metrics"), h("div", { class: "met" }, mets.map(([l, v]) => h("div", { class: "card stat", style: "margin:0" }, h("b", { class: "m" }, v <= 1 ? pct(v, l.startsWith("Decision") ? 2 : 1) : String(v)), h("span", {}, l)))),
+      h("p", { class: "help", style: "margin-top:10px" }, "Only metrics set in MODEL_INFO are shown.")),
+    h("div", { class: "card" }, h("h3", {}, "Pipeline"), pipe(["Transaction", "Preprocessing", "XGBoost", "Threshold", "Flag"]), pipe(["Accounts", "Network", "Clusters", "Trace"])),
+    h("div", { class: "card" }, h("h3", {}, "Limitations"), h("ol", {},
+      ["The transaction data is synthetic, so results say nothing about real-world fraud.",
+       "The account network is synthetic: receivers were generated and the rings and mule were planted, so finding them shows the technique works, not that real rings exist. Because the network is sparse, detection here is easier than it would be in real data.",
+       "The decision threshold trades precision against recall. A higher threshold flags fewer transactions and misses more fraud.",
+       "The model scores each transaction on its own and does not currently explain individual predictions.",
+       "Fund tracing ignores the order in time of transfers.",
+       "This is a learning project and must not be used for real financial decisions."].map(t => h("li", {}, t)))));
+}
+
+/* ===== 11. ROUTER, THEME, INIT ===== */
+function route() {
+  let r = location.hash.slice(1); if (!["check", "investigate", "about"].includes(r)) r = "check";
+  ["check", "investigate", "about"].forEach(p => { $("#p-" + p).hidden = p !== r; $("#t-" + p).setAttribute("aria-selected", p === r); });
+  if (r === "investigate" && !invReady) initInv();
+  scrollTo({ top: 0 });
+}
+addEventListener("hashchange", route);
+document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+$("#theme").addEventListener("click", () => { const d = document.documentElement; d.dataset.theme = d.dataset.theme === "dark" ? "light" : "dark"; });
+setForm(null); resetResult(); renderHist(); renderAbout(); route();
+// Probe the API once so the status dot is right on first load
+fetch(API_BASE + "/openapi.json").then(r => r.ok ? setApi("live") : setApi("demo")).catch(() => setApi("demo"));
+</script>
+</body>
+</html>

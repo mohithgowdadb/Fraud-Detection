@@ -1,0 +1,17 @@
+# ---------- Web server ----------
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.0            # app.py uses model_dump(), which is pydantic v2
+
+# ---------- Data and machine learning ----------
+numpy>=2.1
+pandas>=2.2
+joblib>=1.4
+
+# EXACT versions below: the saved model files only load safely with the
+# same versions that created them.
+scikit-learn==1.7.2      # fraud_preprocessor.joblib was saved with this version
+xgboost-cpu==3.4.1       # fraud_model.joblib was saved with XGBoost 3.4.1 (CPU-only build, far smaller)
+
+# ---------- Graph analysis ----------
+networkx>=3.3
